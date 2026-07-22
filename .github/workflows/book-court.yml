@@ -2,10 +2,13 @@ name: Book court
 
 on:
   schedule:
-    # 00:00 daily. GitHub Actions cron is always UTC - adjust if the club's
-    # local midnight differs from UTC midnight (e.g. use "0 4 * * *" for
-    # US Eastern Standard Time, "0 5 * * *" during daylight saving).
-    - cron: "0 0 * * *"
+    # GitHub Actions cron is always UTC, and the Eastern UTC offset changes
+    # with daylight saving, so both possible trigger times are listed. The
+    # "Only run at Eastern midnight" step below skips whichever of these
+    # doesn't actually correspond to local midnight that day, so only one
+    # fires in practice.
+    - cron: "0 5 * * *"  # 00:00 EST (UTC-5), roughly Nov-Mar
+    - cron: "0 4 * * *"  # 00:00 EDT (UTC-4), roughly Mar-Nov
   workflow_dispatch:
     inputs:
       dry_run:
@@ -17,18 +20,31 @@ jobs:
   book:
     runs-on: ubuntu-latest
     steps:
+      - name: Only run at Eastern midnight
+        if: github.event_name == 'schedule'
+        run: |
+          hour=$(TZ="America/New_York" date +%H)
+          if [ "$hour" != "00" ]; then
+            echo "Not Eastern midnight (local hour is $hour); skipping this trigger."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+
       - name: Checkout
+        if: env.SKIP != 'true'
         uses: actions/checkout@v4
 
       - name: Set up Python
+        if: env.SKIP != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install dependencies
+        if: env.SKIP != 'true'
         run: pip install requests
 
       - name: Write auth file
+        if: env.SKIP != 'true'
         run: |
           umask 077
           printf '%s' "$PODPLAY_AUTH_JSON" > ~/.podplay_auth.json
@@ -36,6 +52,7 @@ jobs:
           PODPLAY_AUTH_JSON: ${{ secrets.PODPLAY_AUTH_JSON }}
 
       - name: Run booking script
+        if: env.SKIP != 'true'
         run: |
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             python3 book_court.py --dry-run

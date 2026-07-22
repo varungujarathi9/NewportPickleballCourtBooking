@@ -107,10 +107,14 @@ second.
 
 If you'd rather not rely on a machine at home staying powered on, the repo
 includes `.github/workflows/book-court.yml`, which runs on GitHub's own
-servers every day at 00:00 UTC. **GitHub Actions cron is always UTC** - if the
-club's local midnight isn't UTC midnight, edit the `cron:` line in that file
-(e.g. `0 4 * * *` for US Eastern Standard Time, `0 5 * * *` during daylight
-saving).
+servers every day at midnight US Eastern time. **GitHub Actions cron is
+always UTC**, and Eastern's UTC offset changes with daylight saving, so the
+workflow schedules two triggers - `0 5 * * *` (00:00 EST) and `0 4 * * *`
+(00:00 EDT) - and a guard step checks the actual Eastern wall-clock hour at
+runtime and skips whichever trigger doesn't land on local midnight that day.
+Only one booking run actually executes per day. If the club is in a
+different timezone, adjust both the cron lines and the `TZ=` value in that
+guard step.
 
 Since Actions runners don't have access to `~/.podplay_auth.json` on your
 machine, you provide it as a repository secret instead:
