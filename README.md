@@ -103,6 +103,37 @@ script itself polls every 5 seconds for up to 15 minutes in case the slot
 takes a moment to unlock, so the cron time doesn't need to be exact to the
 second.
 
+## 4b. Or schedule it via GitHub Actions instead
+
+If you'd rather not rely on a machine at home staying powered on, the repo
+includes `.github/workflows/book-court.yml`, which runs on GitHub's own
+servers every day at 00:00 UTC. **GitHub Actions cron is always UTC** - if the
+club's local midnight isn't UTC midnight, edit the `cron:` line in that file
+(e.g. `0 4 * * *` for US Eastern Standard Time, `0 5 * * *` during daylight
+saving).
+
+Since Actions runners don't have access to `~/.podplay_auth.json` on your
+machine, you provide it as a repository secret instead:
+
+1. Push this repo to GitHub (it can be a private repo).
+2. In the repo, go to **Settings → Secrets and variables → Actions → New
+   repository secret**.
+3. Name it `PODPLAY_AUTH_JSON`, and paste the *entire contents* of your local
+   `~/.podplay_auth.json` file as the value (it's just `{"refresh_token":
+   "..."}`).
+4. The workflow writes that secret to `~/.podplay_auth.json` on the runner at
+   the start of each run, then executes `book_court.py` exactly as it would
+   run locally.
+
+You can trigger a manual test run anytime from the **Actions** tab → "Book
+court" → **Run workflow**, with the "Dry run" checkbox enabled to verify
+everything works without submitting a real booking.
+
+Treat `PODPLAY_AUTH_JSON` like a password: anyone with write access to the
+repo's secrets (or push access, if you ever log the token) could use it to
+book or act on your account. Rotate it (redo the extraction step) if you ever
+suspect it leaked.
+
 ## Notes / limits
 
 - `GROUP_SIZE`, `DURATION_MINUTES`, and `BOOKING_HOUR` are all in the CONFIG

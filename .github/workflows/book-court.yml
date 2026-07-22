@@ -1,0 +1,44 @@
+name: Book court
+
+on:
+  schedule:
+    # 00:00 daily. GitHub Actions cron is always UTC - adjust if the club's
+    # local midnight differs from UTC midnight (e.g. use "0 4 * * *" for
+    # US Eastern Standard Time, "0 5 * * *" during daylight saving).
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (do everything except submit the booking)"
+        type: boolean
+        default: false
+
+jobs:
+  book:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Write auth file
+        run: |
+          umask 077
+          printf '%s' "$PODPLAY_AUTH_JSON" > ~/.podplay_auth.json
+        env:
+          PODPLAY_AUTH_JSON: ${{ secrets.PODPLAY_AUTH_JSON }}
+
+      - name: Run booking script
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            python3 book_court.py --dry-run
+          else
+            python3 book_court.py
+          fi
